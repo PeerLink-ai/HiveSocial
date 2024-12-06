@@ -17,6 +17,12 @@ app.use(session({
   cookie: { secure: true } // Ensure HTTPS in production
 }));
 
+// Middleware to log incoming requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Serve static files from the 'views' directory
 app.use(express.static(path.join(__dirname, 'views')));
 
@@ -26,10 +32,14 @@ app.use('/auth', authRoutes);
 // Middleware to attach user to request if logged in
 app.use(async (req, res, next) => {
   if (req.session.userId) {
+    console.log(`Fetching user data for userId: ${req.session.userId}`);
     try {
       const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
       if (result.rows.length > 0) {
         req.user = result.rows[0];
+        console.log(`User data retrieved: ${req.user.name} (${req.user.email})`);
+      } else {
+        console.warn(`No user found with id: ${req.session.userId}`);
       }
     } catch (error) {
       console.error('Error fetching user from database:', error);
@@ -41,17 +51,22 @@ app.use(async (req, res, next) => {
 // Dashboard route
 app.get('/dashboard', async (req, res) => {
   if (!req.user) {
+    console.warn('Unauthorized access to dashboard');
     return res.redirect('/');
   }
+
+  console.log(`Rendering dashboard for user: ${req.user.name} (${req.user.email})`);
 
   try {
     // Fetch YouTube videos for the user
     const videosResult = await pool.query('SELECT * FROM youtube_videos WHERE user_id = $1', [req.user.id]);
     const videos = videosResult.rows;
+    console.log(`Fetched ${videos.length} YouTube videos for userId: ${req.user.id}`);
 
     // Fetch contacts for the user
     const contactsResult = await pool.query('SELECT * FROM contacts WHERE user_id = $1', [req.user.id]);
     const contacts = contactsResult.rows;
+    console.log(`Fetched ${contacts.length} contacts for userId: ${req.user.id}`);
 
     // Render a simple dashboard
     let videoList = '<ul>';
@@ -134,17 +149,22 @@ app.get('/dashboard', async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
+    console.error('Error rendering dashboard:', error);
     res.status(500).send('Failed to load dashboard.');
   }
 });
 
 // Home route (landing page)
 app.get('/', (req, res) => {
+  console.log('Serving landing page');
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
-// Optional: Handle other routes or API endpoints here
+// Handle undefined routes
+app.use((req, res) => {
+  console.warn(`404 Not Found: ${req.method} ${req.url}`);
+  res.status(404).send('Page not found.');
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

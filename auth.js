@@ -38,28 +38,37 @@ const scopes = [
 
 // Route to initiate OAuth flow
 router.get('/google', (req, res) => {
+  console.log('Initiating Google OAuth flow');
   const url = client.generateAuthUrl({
     access_type: 'offline', // Request refresh token
     scope: scopes,
     prompt: 'consent' // Force consent screen to get refresh token every time
   });
+  console.log(`Redirecting to Google OAuth URL: ${url}`);
   res.redirect(url);
 });
 
 // Route to handle OAuth callback
 router.get('/google/callback', async (req, res) => {
   const code = req.query.code;
-
+  console.log('Received OAuth callback');
+  
   if (!code) {
+    console.error('No authorization code provided in callback.');
     return res.status(400).send('No code provided.');
   }
-
+  
+  console.log(`Authorization code received: ${code}`);
+  
   try {
     // Exchange the authorization code for tokens
+    console.log('Exchanging authorization code for tokens');
     const { tokens } = await client.getToken(code);
     client.setCredentials(tokens);
+    console.log('Tokens obtained and set in OAuth2 client');
 
     // Fetch user information from Google
+    console.log('Fetching user information from Google');
     const userInfoResp = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
       headers: {
         Authorization: `Bearer ${tokens.access_token}`
@@ -67,12 +76,15 @@ router.get('/google/callback', async (req, res) => {
     });
     const userData = userInfoResp.data;
     const userId = userData.id;
+    console.log(`User data fetched: ${JSON.stringify(userData)}`);
 
-    // Fetch additional user data if needed, e.g., birthday, gender, organization, phone numbers, addresses, etc.
+    // Fetch additional user data if needed
     let additionalData = {};
+    console.log('Fetching additional user data based on scopes');
 
     // Fetch birthday
     if (scopes.includes('https://www.googleapis.com/auth/user.birthday.read')) {
+      console.log('Fetching user birthday');
       const birthdayResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=birthdays', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
@@ -83,12 +95,14 @@ router.get('/google/callback', async (req, res) => {
         const birthday = birthdays[0].date;
         if (birthday) {
           additionalData.birthday = `${birthday.year}-${birthday.month}-${birthday.day}`;
+          console.log(`Birthday fetched: ${additionalData.birthday}`);
         }
       }
     }
 
     // Fetch gender
     if (scopes.includes('https://www.googleapis.com/auth/user.gender.read')) {
+      console.log('Fetching user gender');
       const genderResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=genders', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
@@ -97,11 +111,13 @@ router.get('/google/callback', async (req, res) => {
       const genders = genderResp.data.genders;
       if (genders && genders.length > 0) {
         additionalData.gender = genders[0].value;
+        console.log(`Gender fetched: ${additionalData.gender}`);
       }
     }
 
     // Fetch organization
     if (scopes.includes('https://www.googleapis.com/auth/user.organization.read')) {
+      console.log('Fetching user organization');
       const orgResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=organizations', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
@@ -110,11 +126,13 @@ router.get('/google/callback', async (req, res) => {
       const organizations = orgResp.data.organizations;
       if (organizations && organizations.length > 0) {
         additionalData.organization = organizations[0].name;
+        console.log(`Organization fetched: ${additionalData.organization}`);
       }
     }
 
     // Fetch phone numbers
     if (scopes.includes('https://www.googleapis.com/auth/user.phonenumbers.read')) {
+      console.log('Fetching user phone numbers');
       const phonesResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=phoneNumbers', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
@@ -126,11 +144,13 @@ router.get('/google/callback', async (req, res) => {
           type: phone.type,
           number: phone.value
         }));
+        console.log(`Phone numbers fetched: ${JSON.stringify(additionalData.phone_numbers)}`);
       }
     }
 
     // Fetch addresses
     if (scopes.includes('https://www.googleapis.com/auth/user.addresses.read')) {
+      console.log('Fetching user addresses');
       const addressesResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=addresses', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
@@ -142,11 +162,13 @@ router.get('/google/callback', async (req, res) => {
           type: address.type,
           formatted: address.formattedValue
         }));
+        console.log(`Addresses fetched: ${JSON.stringify(additionalData.addresses)}`);
       }
     }
 
     // Fetch age range
     if (scopes.includes('https://www.googleapis.com/auth/profile.agerange.read')) {
+      console.log('Fetching user age range');
       const ageRangeResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=ageRanges', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
@@ -155,11 +177,13 @@ router.get('/google/callback', async (req, res) => {
       const ageRanges = ageRangeResp.data.ageRanges;
       if (ageRanges && ageRanges.length > 0) {
         additionalData.age_range = ageRanges[0].value;
+        console.log(`Age range fetched: ${additionalData.age_range}`);
       }
     }
 
     // Fetch language preferences
     if (scopes.includes('https://www.googleapis.com/auth/profile.language.read')) {
+      console.log('Fetching user language preferences');
       const languageResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=languageSpoken', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
@@ -168,11 +192,13 @@ router.get('/google/callback', async (req, res) => {
       const languages = languageResp.data.languageSpoken;
       if (languages && languages.length > 0) {
         additionalData.language_preferences = languages.map(lang => lang.languageCode);
+        console.log(`Language preferences fetched: ${JSON.stringify(additionalData.language_preferences)}`);
       }
     }
 
     // Fetch contacts (requires sensitive scopes)
     if (scopes.includes('https://www.googleapis.com/auth/contacts')) {
+      console.log('Fetching user contacts');
       const contactsResp = await axios.get('https://people.googleapis.com/v1/people/me/connections', {
         params: {
           personFields: 'names,emailAddresses,phoneNumbers'
@@ -188,12 +214,14 @@ router.get('/google/callback', async (req, res) => {
           email: contact.emailAddresses ? contact.emailAddresses[0].value : null,
           phone: contact.phoneNumbers ? contact.phoneNumbers[0].value : null
         }));
+        console.log(`Contacts fetched: ${JSON.stringify(additionalData.contacts)}`);
       }
     }
 
     // Fetch YouTube videos (requires YouTube scopes)
     let youtubeVideos = [];
     if (scopes.includes('https://www.googleapis.com/auth/youtube.readonly') || scopes.includes('https://www.googleapis.com/auth/youtube.force-ssl')) {
+      console.log('Fetching user YouTube videos');
       const youtubeResp = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
         params: {
           part: 'snippet,contentDetails,statistics',
@@ -205,9 +233,11 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       youtubeVideos = youtubeResp.data.items;
+      console.log(`YouTube videos fetched: ${JSON.stringify(youtubeVideos)}`);
     }
 
     // Insert or update the user in Postgres
+    console.log('Inserting/updating user data in the database');
     const queryText = `
       INSERT INTO users (
         id, email, name, picture, age_range, language_preferences,
@@ -241,10 +271,18 @@ router.get('/google/callback', async (req, res) => {
       additionalData.phone_numbers ? JSON.stringify(additionalData.phone_numbers) : null,
       JSON.stringify(tokens)
     ];
-    await pool.query(queryText, values);
+
+    try {
+      await pool.query(queryText, values);
+      console.log('User data inserted/updated successfully');
+    } catch (dbError) {
+      console.error('Database error while inserting/updating user data:', dbError);
+      throw dbError; // Re-throw to be caught by outer catch
+    }
 
     // Insert contacts into the database
     if (additionalData.contacts && additionalData.contacts.length > 0) {
+      console.log('Inserting contacts into the database');
       const insertContactQuery = `
         INSERT INTO contacts (user_id, name, email, phone)
         VALUES ($1, $2, $3, $4)
@@ -252,13 +290,20 @@ router.get('/google/callback', async (req, res) => {
       `;
       for (const contact of additionalData.contacts) {
         if (contact.name || contact.email || contact.phone) {
-          await pool.query(insertContactQuery, [userId, contact.name, contact.email, contact.phone]);
+          try {
+            await pool.query(insertContactQuery, [userId, contact.name, contact.email, contact.phone]);
+            console.log(`Contact inserted: ${JSON.stringify(contact)}`);
+          } catch (contactError) {
+            console.error('Database error while inserting contact:', contactError);
+            // Continue with other contacts
+          }
         }
       }
     }
 
     // Insert YouTube videos into the database
     if (youtubeVideos.length > 0) {
+      console.log('Inserting YouTube videos into the database');
       const insertVideoQuery = `
         INSERT INTO youtube_videos (video_id, user_id, title, thumbnail_url, published_at)
         VALUES ($1, $2, $3, $4, $5)
@@ -272,28 +317,38 @@ router.get('/google/callback', async (req, res) => {
         const title = video.snippet.title;
         const thumbnailUrl = video.snippet.thumbnails.default.url;
         const publishedAt = video.snippet.publishedAt;
-        await pool.query(insertVideoQuery, [videoId, userId, title, thumbnailUrl, publishedAt]);
+        try {
+          await pool.query(insertVideoQuery, [videoId, userId, title, thumbnailUrl, publishedAt]);
+          console.log(`YouTube video inserted/updated: ${title}`);
+        } catch (videoError) {
+          console.error('Database error while inserting/updating YouTube video:', videoError);
+          // Continue with other videos
+        }
       }
     }
 
     // Save user ID in session
+    console.log('Saving user ID in session');
     req.session.userId = userId;
 
     // Redirect to dashboard after successful sign-in
+    console.log('Redirecting user to dashboard');
     res.redirect('/dashboard');
   } catch (error) {
-    console.error('Error during OAuth callback:', error);
+    console.error('Error during OAuth callback:', error.response ? error.response.data : error.message);
     res.status(500).send('Authentication failed.');
   }
 });
 
 // Route to handle logout
 router.get('/logout', (req, res) => {
+  console.log('Received logout request');
   req.session.destroy(err => {
     if (err) {
       console.error('Error destroying session:', err);
       return res.status(500).send('Failed to logout.');
     }
+    console.log('Session destroyed successfully');
     res.redirect('/');
   });
 });
