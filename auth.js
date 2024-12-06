@@ -52,14 +52,15 @@ router.get('/google', (req, res) => {
 router.get('/google/callback', async (req, res) => {
   const code = req.query.code;
   console.log('Received OAuth callback');
-  
+  console.log(`Server Time: ${new Date().toISOString()}`); // Log server time
+
   if (!code) {
     console.error('No authorization code provided in callback.');
     return res.status(400).send('No code provided.');
   }
-  
+
   console.log(`Authorization code received: ${code}`);
-  
+
   try {
     // Exchange the authorization code for tokens
     console.log('Exchanging authorization code for tokens');
@@ -80,7 +81,6 @@ router.get('/google/callback', async (req, res) => {
 
     // Fetch additional user data if needed
     let additionalData = {};
-    console.log('Fetching additional user data based on scopes');
 
     // Fetch birthday
     if (scopes.includes('https://www.googleapis.com/auth/user.birthday.read')) {
@@ -91,11 +91,12 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       const birthdays = birthdayResp.data.birthdays;
+      console.log(`Birthday response: ${JSON.stringify(birthdays)}`);
       if (birthdays && birthdays.length > 0) {
         const birthday = birthdays[0].date;
         if (birthday) {
           additionalData.birthday = `${birthday.year}-${birthday.month}-${birthday.day}`;
-          console.log(`Birthday fetched: ${additionalData.birthday}`);
+          console.log(`Birthday set to: ${additionalData.birthday}`);
         }
       }
     }
@@ -109,9 +110,10 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       const genders = genderResp.data.genders;
+      console.log(`Gender response: ${JSON.stringify(genders)}`);
       if (genders && genders.length > 0) {
         additionalData.gender = genders[0].value;
-        console.log(`Gender fetched: ${additionalData.gender}`);
+        console.log(`Gender set to: ${additionalData.gender}`);
       }
     }
 
@@ -124,9 +126,10 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       const organizations = orgResp.data.organizations;
+      console.log(`Organization response: ${JSON.stringify(organizations)}`);
       if (organizations && organizations.length > 0) {
         additionalData.organization = organizations[0].name;
-        console.log(`Organization fetched: ${additionalData.organization}`);
+        console.log(`Organization set to: ${additionalData.organization}`);
       }
     }
 
@@ -139,12 +142,13 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       const phoneNumbers = phonesResp.data.phoneNumbers;
+      console.log(`Phone numbers response: ${JSON.stringify(phoneNumbers)}`);
       if (phoneNumbers && phoneNumbers.length > 0) {
         additionalData.phone_numbers = phoneNumbers.map(phone => ({
           type: phone.type,
           number: phone.value
         }));
-        console.log(`Phone numbers fetched: ${JSON.stringify(additionalData.phone_numbers)}`);
+        console.log(`Phone numbers set to: ${JSON.stringify(additionalData.phone_numbers)}`);
       }
     }
 
@@ -157,12 +161,13 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       const addresses = addressesResp.data.addresses;
+      console.log(`Addresses response: ${JSON.stringify(addresses)}`);
       if (addresses && addresses.length > 0) {
         additionalData.addresses = addresses.map(address => ({
           type: address.type,
           formatted: address.formattedValue
         }));
-        console.log(`Addresses fetched: ${JSON.stringify(additionalData.addresses)}`);
+        console.log(`Addresses set to: ${JSON.stringify(additionalData.addresses)}`);
       }
     }
 
@@ -175,24 +180,27 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       const ageRanges = ageRangeResp.data.ageRanges;
+      console.log(`Age ranges response: ${JSON.stringify(ageRanges)}`);
       if (ageRanges && ageRanges.length > 0) {
         additionalData.age_range = ageRanges[0].value;
-        console.log(`Age range fetched: ${additionalData.age_range}`);
+        console.log(`Age range set to: ${additionalData.age_range}`);
       }
     }
 
     // Fetch language preferences
     if (scopes.includes('https://www.googleapis.com/auth/profile.language.read')) {
       console.log('Fetching user language preferences');
-      const languageResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=languageSpoken', {
+      // Corrected personFields from 'languageSpoken' to 'languagesSpoken'
+      const languageResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=languagesSpoken', {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`
         }
       });
-      const languages = languageResp.data.languageSpoken;
+      const languages = languageResp.data.languagesSpoken;
+      console.log(`Languages spoken response: ${JSON.stringify(languages)}`);
       if (languages && languages.length > 0) {
         additionalData.language_preferences = languages.map(lang => lang.languageCode);
-        console.log(`Language preferences fetched: ${JSON.stringify(additionalData.language_preferences)}`);
+        console.log(`Language preferences set to: ${JSON.stringify(additionalData.language_preferences)}`);
       }
     }
 
@@ -208,19 +216,23 @@ router.get('/google/callback', async (req, res) => {
         }
       });
       const connections = contactsResp.data.connections;
+      console.log(`Contacts response: ${JSON.stringify(connections)}`);
       if (connections && connections.length > 0) {
         additionalData.contacts = connections.map(contact => ({
           name: contact.names ? contact.names[0].displayName : null,
           email: contact.emailAddresses ? contact.emailAddresses[0].value : null,
           phone: contact.phoneNumbers ? contact.phoneNumbers[0].value : null
         }));
-        console.log(`Contacts fetched: ${JSON.stringify(additionalData.contacts)}`);
+        console.log(`Contacts set to: ${JSON.stringify(additionalData.contacts)}`);
       }
     }
 
     // Fetch YouTube videos (requires YouTube scopes)
     let youtubeVideos = [];
-    if (scopes.includes('https://www.googleapis.com/auth/youtube.readonly') || scopes.includes('https://www.googleapis.com/auth/youtube.force-ssl')) {
+    if (
+      scopes.includes('https://www.googleapis.com/auth/youtube.readonly') ||
+      scopes.includes('https://www.googleapis.com/auth/youtube.force-ssl')
+    ) {
       console.log('Fetching user YouTube videos');
       const youtubeResp = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
         params: {
@@ -271,18 +283,13 @@ router.get('/google/callback', async (req, res) => {
       additionalData.phone_numbers ? JSON.stringify(additionalData.phone_numbers) : null,
       JSON.stringify(tokens)
     ];
-
-    try {
-      await pool.query(queryText, values);
-      console.log('User data inserted/updated successfully');
-    } catch (dbError) {
-      console.error('Database error while inserting/updating user data:', dbError);
-      throw dbError; // Re-throw to be caught by outer catch
-    }
+    console.log(`Executing query with values: ${JSON.stringify(values)}`);
+    await pool.query(queryText, values);
+    console.log('User data inserted/updated successfully');
 
     // Insert contacts into the database
     if (additionalData.contacts && additionalData.contacts.length > 0) {
-      console.log('Inserting contacts into the database');
+      console.log('Inserting user contacts into the database');
       const insertContactQuery = `
         INSERT INTO contacts (user_id, name, email, phone)
         VALUES ($1, $2, $3, $4)
@@ -290,15 +297,11 @@ router.get('/google/callback', async (req, res) => {
       `;
       for (const contact of additionalData.contacts) {
         if (contact.name || contact.email || contact.phone) {
-          try {
-            await pool.query(insertContactQuery, [userId, contact.name, contact.email, contact.phone]);
-            console.log(`Contact inserted: ${JSON.stringify(contact)}`);
-          } catch (contactError) {
-            console.error('Database error while inserting contact:', contactError);
-            // Continue with other contacts
-          }
+          console.log(`Inserting contact: ${JSON.stringify(contact)}`);
+          await pool.query(insertContactQuery, [userId, contact.name, contact.email, contact.phone]);
         }
       }
+      console.log('User contacts inserted successfully');
     }
 
     // Insert YouTube videos into the database
@@ -317,18 +320,14 @@ router.get('/google/callback', async (req, res) => {
         const title = video.snippet.title;
         const thumbnailUrl = video.snippet.thumbnails.default.url;
         const publishedAt = video.snippet.publishedAt;
-        try {
-          await pool.query(insertVideoQuery, [videoId, userId, title, thumbnailUrl, publishedAt]);
-          console.log(`YouTube video inserted/updated: ${title}`);
-        } catch (videoError) {
-          console.error('Database error while inserting/updating YouTube video:', videoError);
-          // Continue with other videos
-        }
+        console.log(`Inserting YouTube video: ${videoId} - ${title}`);
+        await pool.query(insertVideoQuery, [videoId, userId, title, thumbnailUrl, publishedAt]);
       }
+      console.log('YouTube videos inserted successfully');
     }
 
     // Save user ID in session
-    console.log('Saving user ID in session');
+    console.log(`Saving user ID ${userId} in session`);
     req.session.userId = userId;
 
     // Redirect to dashboard after successful sign-in
@@ -342,7 +341,7 @@ router.get('/google/callback', async (req, res) => {
 
 // Route to handle logout
 router.get('/logout', (req, res) => {
-  console.log('Received logout request');
+  console.log('Logout requested');
   req.session.destroy(err => {
     if (err) {
       console.error('Error destroying session:', err);

@@ -12,7 +12,7 @@ const pool = new Pool({
 // Initialize the database tables if they don't exist
 const initializeDB = async () => {
   try {
-    console.log('Initializing database tables...');
+    console.log('Initializing database tables');
 
     // Create 'users' table
     await pool.query(`

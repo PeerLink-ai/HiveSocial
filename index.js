@@ -17,7 +17,7 @@ app.use(session({
   cookie: { secure: true } // Ensure HTTPS in production
 }));
 
-// Middleware to log incoming requests
+// Middleware for logging each request
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
@@ -32,14 +32,11 @@ app.use('/auth', authRoutes);
 // Middleware to attach user to request if logged in
 app.use(async (req, res, next) => {
   if (req.session.userId) {
-    console.log(`Fetching user data for userId: ${req.session.userId}`);
     try {
       const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
       if (result.rows.length > 0) {
         req.user = result.rows[0];
-        console.log(`User data retrieved: ${req.user.name} (${req.user.email})`);
-      } else {
-        console.warn(`No user found with id: ${req.session.userId}`);
+        console.log(`User attached to request: ${req.user.name}`);
       }
     } catch (error) {
       console.error('Error fetching user from database:', error);
@@ -51,22 +48,24 @@ app.use(async (req, res, next) => {
 // Dashboard route
 app.get('/dashboard', async (req, res) => {
   if (!req.user) {
-    console.warn('Unauthorized access to dashboard');
+    console.warn('Unauthenticated access to dashboard. Redirecting to home.');
     return res.redirect('/');
   }
 
-  console.log(`Rendering dashboard for user: ${req.user.name} (${req.user.email})`);
+  console.log(`Rendering dashboard for user: ${req.user.name}`);
 
   try {
     // Fetch YouTube videos for the user
+    console.log('Fetching YouTube videos from database');
     const videosResult = await pool.query('SELECT * FROM youtube_videos WHERE user_id = $1', [req.user.id]);
     const videos = videosResult.rows;
-    console.log(`Fetched ${videos.length} YouTube videos for userId: ${req.user.id}`);
+    console.log(`YouTube videos fetched: ${videos.length}`);
 
     // Fetch contacts for the user
+    console.log('Fetching contacts from database');
     const contactsResult = await pool.query('SELECT * FROM contacts WHERE user_id = $1', [req.user.id]);
     const contacts = contactsResult.rows;
-    console.log(`Fetched ${contacts.length} contacts for userId: ${req.user.id}`);
+    console.log(`Contacts fetched: ${contacts.length}`);
 
     // Render a simple dashboard
     let videoList = '<ul>';
@@ -163,7 +162,7 @@ app.get('/', (req, res) => {
 // Handle undefined routes
 app.use((req, res) => {
   console.warn(`404 Not Found: ${req.method} ${req.url}`);
-  res.status(404).send('Page not found.');
+  res.status(404).send('Page not found');
 });
 
 app.listen(PORT, () => {
