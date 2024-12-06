@@ -68,6 +68,13 @@ router.get('/google/callback', async (req, res) => {
     client.setCredentials(tokens);
     console.log('Tokens obtained and set in OAuth2 client');
 
+    // Check if refresh token is present
+    if (tokens.refresh_token) {
+      console.log('Refresh token obtained');
+    } else {
+      console.warn('No refresh token obtained. It might have been previously granted.');
+    }
+
     // Fetch user information from Google
     console.log('Fetching user information from Google');
     const userInfoResp = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {

@@ -5,6 +5,7 @@ const path = require('path');
 const session = require('express-session');
 const authRoutes = require('./auth');
 const { pool } = require('./db');
+const { refreshAccessToken } = require('./tokenUtils');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -35,7 +36,12 @@ app.use(async (req, res, next) => {
     try {
       const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
       if (result.rows.length > 0) {
-        req.user = result.rows[0];
+        const user = result.rows[0];
+        
+        // Here, you might want to check if the access token is expired.
+        // For simplicity, we'll assume it's valid and proceed. Implement token expiration checks as needed.
+        
+        req.user = user;
         console.log(`User attached to request: ${req.user.name}`);
       }
     } catch (error) {
@@ -55,6 +61,15 @@ app.get('/dashboard', async (req, res) => {
   console.log(`Rendering dashboard for user: ${req.user.name}`);
 
   try {
+    // Refresh the access token if needed
+    // For demonstration, we'll assume the token might be expired and attempt to refresh it
+    const newAccessToken = await refreshAccessToken(req.user.id);
+    console.log(`New access token: ${newAccessToken}`);
+
+    // Now, proceed with fetching data using the new access token
+    // For example, fetch YouTube videos using the new access token
+    // You can reuse the logic from the `auth.js` if needed
+
     // Fetch YouTube videos for the user
     console.log('Fetching YouTube videos from database');
     const videosResult = await pool.query('SELECT * FROM youtube_videos WHERE user_id = $1', [req.user.id]);
@@ -148,7 +163,7 @@ app.get('/dashboard', async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('Error rendering dashboard:', error);
+    console.error('Error rendering dashboard:', error.message);
     res.status(500).send('Failed to load dashboard.');
   }
 });
