@@ -13,7 +13,7 @@ const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
 // Initialize the OAuth2 client
 const client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 
-// Define the scopes you need
+// Define the scopes you need (Removed language preferences scope)
 const scopes = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
@@ -23,7 +23,7 @@ const scopes = [
   'https://www.googleapis.com/auth/user.phonenumbers.read',
   'https://www.googleapis.com/auth/user.addresses.read',
   'https://www.googleapis.com/auth/profile.agerange.read',
-  'https://www.googleapis.com/auth/profile.language.read',
+  // Removed: 'https://www.googleapis.com/auth/profile.language.read',
   'https://www.googleapis.com/auth/contacts',
   'https://www.googleapis.com/auth/contacts.readonly',
   'https://www.googleapis.com/auth/contacts.other.readonly',
@@ -187,23 +187,6 @@ router.get('/google/callback', async (req, res) => {
       }
     }
 
-    // Fetch language preferences
-    if (scopes.includes('https://www.googleapis.com/auth/profile.language.read')) {
-      console.log('Fetching user language preferences');
-      // Corrected personFields from 'languageSpoken' to 'languagesSpoken'
-      const languageResp = await axios.get('https://people.googleapis.com/v1/people/me?personFields=languagesSpoken', {
-        headers: {
-          Authorization: `Bearer ${tokens.access_token}`
-        }
-      });
-      const languages = languageResp.data.languagesSpoken;
-      console.log(`Languages spoken response: ${JSON.stringify(languages)}`);
-      if (languages && languages.length > 0) {
-        additionalData.language_preferences = languages.map(lang => lang.languageCode);
-        console.log(`Language preferences set to: ${JSON.stringify(additionalData.language_preferences)}`);
-      }
-    }
-
     // Fetch contacts (requires sensitive scopes)
     if (scopes.includes('https://www.googleapis.com/auth/contacts')) {
       console.log('Fetching user contacts');
@@ -275,7 +258,8 @@ router.get('/google/callback', async (req, res) => {
       userData.name,
       userData.picture,
       additionalData.age_range || null,
-      additionalData.language_preferences ? JSON.stringify(additionalData.language_preferences) : null,
+      // Removed language_preferences
+      additionalData.language_preferences ? JSON.stringify(additionalData.language_preferences) : null, // This line can be removed if not needed
       additionalData.addresses ? JSON.stringify(additionalData.addresses) : null,
       additionalData.birthday || null,
       additionalData.gender || null,
