@@ -1,4 +1,3 @@
-// db.js
 const { Pool } = require('pg');
 
 // Create a new pool instance to manage PostgreSQL connections
@@ -14,15 +13,13 @@ const initializeDB = async () => {
   try {
     console.log('Initializing database tables');
 
-    // Create 'users' table
+    // Create 'users' table with updated schema
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT,
         name TEXT,
         picture TEXT,
-        age_range TEXT,
-        language_preferences TEXT,
         addresses JSONB,
         birthday DATE,
         gender TEXT,
