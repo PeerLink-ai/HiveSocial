@@ -235,16 +235,15 @@ router.get('/google/callback', async (req, res) => {
     console.log('Inserting/updating user data in the database');
     const queryText = `
       INSERT INTO users (
-        id, email, name, picture, age_range, language_preferences,
+        id, email, name, picture, age_range,
         addresses, birthday, gender, organization, phone_numbers, tokens
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
         picture = EXCLUDED.picture,
         age_range = EXCLUDED.age_range,
-        language_preferences = EXCLUDED.language_preferences,
         addresses = EXCLUDED.addresses,
         birthday = EXCLUDED.birthday,
         gender = EXCLUDED.gender,
@@ -258,8 +257,6 @@ router.get('/google/callback', async (req, res) => {
       userData.name,
       userData.picture,
       additionalData.age_range || null,
-      // Removed language_preferences
-      additionalData.language_preferences ? JSON.stringify(additionalData.language_preferences) : null, // This line can be removed if not needed
       additionalData.addresses ? JSON.stringify(additionalData.addresses) : null,
       additionalData.birthday || null,
       additionalData.gender || null,

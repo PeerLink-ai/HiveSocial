@@ -14,7 +14,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret-key', // Use a strong secret in production
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true } // Ensure HTTPS in production
+  cookie: { secure: process.env.NODE_ENV === 'production' } // Ensure HTTPS in production
 }));
 
 // Middleware for logging each request
@@ -151,6 +151,13 @@ app.get('/dashboard', async (req, res) => {
     console.error('Error rendering dashboard:', error);
     res.status(500).send('Failed to load dashboard.');
   }
+});
+
+// Server time endpoint
+app.get('/server-time', (req, res) => {
+  const serverTime = new Date().toISOString();
+  console.log(`Server Time Endpoint Accessed: ${serverTime}`);
+  res.send(`Server Time: ${serverTime}`);
 });
 
 // Home route (landing page)
