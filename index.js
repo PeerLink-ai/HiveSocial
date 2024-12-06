@@ -2,11 +2,20 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const session = require('express-session');
 const authRoutes = require('./auth');
 const { pool } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Configure session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret-key', // Use a strong secret in production
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: true } // Ensure HTTPS in production
+}));
 
 // Serve static files from the 'views' directory
 app.use(express.static(path.join(__dirname, 'views')));
@@ -14,42 +23,49 @@ app.use(express.static(path.join(__dirname, 'views')));
 // Use auth routes for '/auth' path
 app.use('/auth', authRoutes);
 
-// Handle the root path and OAuth callback
-app.get('/auth/google/callback', (req, res) => {
-  // This route is handled in auth.js
+// Middleware to attach user to request if logged in
+app.use(async (req, res, next) => {
+  if (req.session.userId) {
+    try {
+      const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
+      if (result.rows.length > 0) {
+        req.user = result.rows[0];
+      }
+    } catch (error) {
+      console.error('Error fetching user from database:', error);
+    }
+  }
+  next();
 });
 
 // Dashboard route
 app.get('/dashboard', async (req, res) => {
-  // For simplicity, this example doesn't handle sessions or authentication checks.
-  // In a real app, you'd verify the user's session or JWT.
-  
-  // Fetch user data from the database.
-  // Here, we'll assume the user ID is known. In practice, retrieve it from the session.
-  const userId = req.query.userId; // Placeholder: Replace with actual user identification
-
-  if (!userId) {
-    return res.status(400).send('User not identified.');
+  if (!req.user) {
+    return res.redirect('/');
   }
 
   try {
-    // Fetch user information
-    const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-    const user = userRes.rows[0];
+    // Fetch YouTube videos for the user
+    const videosResult = await pool.query('SELECT * FROM youtube_videos WHERE user_id = $1', [req.user.id]);
+    const videos = videosResult.rows;
 
-    if (!user) {
-      return res.status(404).send('User not found.');
-    }
+    // Fetch contacts for the user
+    const contactsResult = await pool.query('SELECT * FROM contacts WHERE user_id = $1', [req.user.id]);
+    const contacts = contactsResult.rows;
 
-    // Fetch user's YouTube videos
-    const videosRes = await pool.query('SELECT * FROM youtube_videos WHERE user_id = $1', [userId]);
-    const videos = videosRes.rows;
+    // Render a simple dashboard
+    let videoList = '<ul>';
+    videos.forEach(video => {
+      videoList += `<li>${video.title} - <img src="${video.thumbnail_url}" alt="Thumbnail"></li>`;
+    });
+    videoList += '</ul>';
 
-    // Fetch user's contacts
-    const contactsRes = await pool.query('SELECT * FROM contacts WHERE user_id = $1', [userId]);
-    const contacts = contactsRes.rows;
+    let contactList = '<ul>';
+    contacts.forEach(contact => {
+      contactList += `<li>${contact.name || 'No Name'} - ${contact.email || 'No Email'} - ${contact.phone || 'No Phone'}</li>`;
+    });
+    contactList += '</ul>';
 
-    // Render the dashboard with user data
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -59,6 +75,7 @@ app.get('/dashboard', async (req, res) => {
           body {
             font-family: Arial, sans-serif;
             background-color: #f0f0f0;
+            color: #333;
             margin: 0;
             padding: 20px;
           }
@@ -68,92 +85,67 @@ app.get('/dashboard', async (req, res) => {
             background-color: #fff;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           }
-          h1, h2 {
+          h1 {
             text-align: center;
           }
-          .section {
-            margin-bottom: 30px;
+          h2 {
+            color: #555;
           }
-          table {
-            width: 100%;
-            border-collapse: collapse;
+          ul {
+            list-style-type: none;
+            padding: 0;
           }
-          th, td {
+          li {
             padding: 10px;
-            border: 1px solid #ddd;
-            text-align: left;
-          }
-          th {
-            background-color: #f4f4f4;
+            border-bottom: 1px solid #ddd;
           }
           img {
-            max-width: 100px;
+            width: 100px;
+            height: auto;
+          }
+          .logout {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4285F4;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+          }
+          .logout:hover {
+            background-color: #357AE8;
           }
         </style>
       </head>
       <body>
         <div class="container">
-          <h1>Welcome, ${user.name}</h1>
-          <p>Email: ${user.email}</p>
-          <img src="${user.picture}" alt="Profile Picture" />
-
-          <div class="section">
-            <h2>Your YouTube Videos</h2>
-            ${videos.length > 0 ? `
-              <table>
-                <tr>
-                  <th>Title</th>
-                  <th>Thumbnail</th>
-                  <th>Published At</th>
-                </tr>
-                ${videos.map(video => `
-                  <tr>
-                    <td>${video.title}</td>
-                    <td><img src="${video.thumbnail_url}" alt="Thumbnail" /></td>
-                    <td>${new Date(video.published_at).toLocaleDateString()}</td>
-                  </tr>
-                `).join('')}
-              </table>
-            ` : `<p>No YouTube videos found.</p>`}
-          </div>
-
-          <div class="section">
-            <h2>Your Contacts</h2>
-            ${contacts.length > 0 ? `
-              <table>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                </tr>
-                ${contacts.map(contact => `
-                  <tr>
-                    <td>${contact.name || 'N/A'}</td>
-                    <td>${contact.email || 'N/A'}</td>
-                    <td>${contact.phone || 'N/A'}</td>
-                  </tr>
-                `).join('')}
-              </table>
-            ` : `<p>No contacts found.</p>`}
-          </div>
+          <h1>Your Dashboard</h1>
+          <h2>Welcome, ${req.user.name}!</h2>
+          <h3>Your YouTube Videos</h3>
+          ${videos.length > 0 ? videoList : '<p>No videos found.</p>'}
+          <h3>Your Contacts</h3>
+          ${contacts.length > 0 ? contactList : '<p>No contacts found.</p>'}
+          <a href="/auth/logout" class="logout">Logout</a>
         </div>
       </body>
       </html>
     `);
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
-    res.status(500).send('Error loading dashboard.');
+    res.status(500).send('Failed to load dashboard.');
   }
 });
 
-// Handle other routes
-app.get('*', (req, res) => {
-  res.status(404).send('Page not found.');
+// Home route (landing page)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
-// Start the server
+// Optional: Handle other routes or API endpoints here
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
