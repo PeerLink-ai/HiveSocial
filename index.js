@@ -6,7 +6,7 @@ const authRoutes = require('./auth');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Serve static files from views directory
+// Serve static files (front-end)
 app.use(express.static(path.join(__dirname, 'views')));
 
 // Auth routes

@@ -2,13 +2,13 @@
     "name": "hive-social",
     "version": "1.0.0",
     "scripts": {
-      "start": "node index.js"
+        "start": "node index.js"
     },
     "dependencies": {
-      "dotenv": "^16.0.0",
-      "express": "^4.18.2",
-      "firebase-admin": "^11.5.0",
-      "google-auth-library": "^8.7.0"
+        "dotenv": "^16.0.0",
+        "express": "^4.18.2",
+        "firebase-admin": "^11.5.0",
+        "google-auth-library": "^8.7.0",
+        "pg": "^8.13.1"
     }
-  }
-  
+}
