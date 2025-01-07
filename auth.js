@@ -3,6 +3,15 @@ const router = express.Router();
 const { OAuth2Client } = require('google-auth-library');
 const axios = require('axios');
 const { pool } = require('./db');
+const session = require('express-session');
+
+// Ensure session middleware is used
+router.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
 
 // Load environment variables
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
