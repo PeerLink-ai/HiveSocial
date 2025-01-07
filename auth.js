@@ -45,24 +45,24 @@ const scopes = [
 
 // Route to initiate OAuth flow
 router.get('/google', (req, res) => {
-  console.log('Initiating Google OAuth flow');
+  console.log('🌟 Initiating Google OAuth flow 🌟');
   const url = client.generateAuthUrl({
     access_type: 'offline', // Request refresh token
     scope: scopes,
     prompt: 'consent' // Force consent screen to get refresh token every time
   });
-  console.log(`Redirecting to Google OAuth URL: ${url}`);
+  console.log(`🔗 Redirecting to Google OAuth URL: ${url}`);
   res.redirect(url);
 });
 
 // Route to handle OAuth callback
 router.get('/google/callback', async (req, res) => {
   const code = req.query.code;
-  console.log('Received OAuth callback');
-  console.log(`Server Time: ${new Date().toISOString()}`); // Log server time
+  console.log('🔄 Received OAuth callback');
+  console.log(`🕒 Server Time: ${new Date().toISOString()}`); // Log server time
 
   if (!code) {
-    console.error('No authorization code provided in callback.');
+    console.error('❌ No authorization code provided in callback.');
     return res.status(400).send('No code provided.');
   }
 
@@ -70,13 +70,13 @@ router.get('/google/callback', async (req, res) => {
 
   try {
     // Exchange the authorization code for tokens
-    console.log('Exchanging authorization code for tokens');
+    console.log('🔄 Exchanging authorization code for tokens');
     const { tokens } = await client.getToken(code);
     client.setCredentials(tokens);
-    console.log('Tokens obtained and set in OAuth2 client');
+    console.log('🔑 Tokens obtained and set in OAuth2 client');
 
     // Fetch user information from Google
-    console.log('Fetching user information from Google');
+    console.log('📥 Fetching user information from Google');
     const userInfoResp = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
       headers: {
         Authorization: `Bearer ${tokens.access_token}`
@@ -84,7 +84,7 @@ router.get('/google/callback', async (req, res) => {
     });
     const userData = userInfoResp.data;
     const userId = userData.id;
-    console.log(`User data fetched: ${JSON.stringify(userData)}`);
+    console.log(`👤 User data fetched: ${JSON.stringify(userData)}`);
 
     // Fetch additional user data if needed
     let additionalData = {};
@@ -174,7 +174,7 @@ router.get('/google/callback', async (req, res) => {
     }
 
     // Insert or update the user in Postgres
-    console.log('Inserting/updating user data in the database');
+    console.log('💾 Inserting/updating user data in the database');
     const queryText = `
       INSERT INTO users (
         id, email, name, picture, 
@@ -204,32 +204,32 @@ router.get('/google/callback', async (req, res) => {
       additionalData.phone_numbers ? JSON.stringify(additionalData.phone_numbers) : null,
       JSON.stringify(tokens)
     ];
-    console.log(`Executing query with values: ${JSON.stringify(values)}`);
+    console.log(`📝 Executing query with values: ${JSON.stringify(values)}`);
     await pool.query(queryText, values);
-    console.log('User data inserted/updated successfully');
+    console.log('✅ User data inserted/updated successfully');
 
     // Save user ID in session
-    console.log(`Saving user ID ${userId} in session`);
+    console.log(`💾 Saving user ID ${userId} in session`);
     req.session.userId = userId;
 
     // Redirect to dashboard after successful sign-in
-    console.log('Redirecting user to dashboard');
+    console.log('🚀 Redirecting user to dashboard');
     res.redirect('/dashboard');
   } catch (error) {
-    console.error('Error during OAuth callback:', error.response ? error.response.data : error.message);
+    console.error('❌ Error during OAuth callback:', error.response ? error.response.data : error.message);
     res.status(500).send('Authentication failed.');
   }
 });
 
 // Route to handle logout
 router.get('/logout', (req, res) => {
-  console.log('Logout requested');
+  console.log('🚪 Logout requested');
   req.session.destroy(err => {
     if (err) {
       console.error('Error destroying session:', err);
       return res.status(500).send('Failed to logout.');
     }
-    console.log('Session destroyed successfully');
+    console.log('🗑️ Session destroyed successfully');
     res.redirect('/');
   });
 });
